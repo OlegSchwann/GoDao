@@ -1,0 +1,46 @@
+{{- /*gotype: github.com/OlegSchwann/GoDao/apply_template.DotType*/ -}}
+package {{ .PackageName }}
+
+import (
+    "context"
+    "github.com/jackc/pgx/v4/pgxpool"
+    {{range $package := .Packages -}}
+    "{{$package}}"
+    {{end}}
+)
+
+func NewGoDao(pool *pgxpool.Pool, ctx context.Context) GoDao {
+    return GoDao{
+    {{range $function := .Functions -}}
+        {{$function.Name}}: func(
+            {{- range $inputIndex, $inputArgument := $function.InputArguments -}}
+                {{if $inputIndex}}, {{end -}}
+                {{$inputArgument.Name}} {{$inputArgument.Type -}}
+            {{end -}}
+        )(
+            {{- range $outputIndex, $outputArgument := $function.OutputArguments -}}
+                {{if $outputIndex}}, {{end -}}
+                {{$outputArgument.Name}} {{$outputArgument.Type -}}
+            {{end -}}
+            {{if len $function.OutputArguments}}, {{end -}}
+            err error){
+            sql := `{{$function.SQL}}`
+            {{if eq $function.ReturnValueType 1 -}}
+            _, err = pool.Exec(contex.Background(), sql)
+            {{else if eq $function.ReturnValueType 2 -}}
+            err = pool.QueryRow(contex.Background(), sql).Scan({{range $index, $outputArgument := $function.OutputArguments}}{{if $index}}, {{end}}&{{$outputArgument.Name}}{{end}})
+            {{else if eq $function.ReturnValueType 3 -}}
+                rows, err := pool.Query(contex.Background(), sql)
+                if err != nil {
+                    return
+                }
+                defer rows.Close() // TODO: тут уже типы конкретные нужны.
+                for rows.Next() {
+
+                }
+            {{end -}}
+            return
+        },
+    {{end -}}
+    }
+}
