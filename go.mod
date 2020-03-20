@@ -3,6 +3,7 @@ module github.com/OlegSchwann/GoDao
 go 1.13
 
 require (
+	github.com/jackc/pgtype v1.2.0
 	github.com/jackc/pgx/v4 v4.5.0
 	github.com/lib/pq v1.3.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

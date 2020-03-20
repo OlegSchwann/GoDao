@@ -8,7 +8,7 @@ import (
 
 //go:generate go run ./embed.go
 
-func main()  {
+func main() {
 	fromF, err := os.Open("./dao.go.tmpl")
 	if err != nil {
 		log.Fatal(err)
@@ -35,6 +35,8 @@ func main()  {
 		switch b {
 		case byte('\n'):
 			toB.WriteString("\\n")
+		case byte('\t'):
+			toB.WriteString("\\t")
 		case byte('"'):
 			toB.WriteString("\\\"")
 		default:

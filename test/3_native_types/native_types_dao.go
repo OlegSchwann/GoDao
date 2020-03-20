@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-func NewGoDao (pool *pgxpool.Pool) GoDao {
+func NewGoDao(pool *pgxpool.Pool) GoDao {
 	return GoDao{
 		Init: func() (err error) {
 			// language=PostgreSQL
