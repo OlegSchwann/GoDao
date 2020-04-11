@@ -1,6 +1,7 @@
-package apply_template
+package template
 
 import (
+	"os"
 	"testing"
 )
 
@@ -61,7 +62,7 @@ limit 5;`,
 			RowFieldsNames:     []string{"Site", "Domain", "Alexa_top", "SimilarWebTop", "Description", "Territory"},
 		}},
 	}
-	err := Render(tt)
+	err := Render(tt, os.Stdout) // TODO: add test for output
 	if err != nil {
 		t.Fatal(err)
 	}

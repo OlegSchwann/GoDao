@@ -1,70 +1,59 @@
 package main
 
 import (
-	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
+	"bufio"
+	"github.com/OlegSchwann/GoDao/internal/ast"
+	"github.com/OlegSchwann/GoDao/internal/extract"
+	"github.com/OlegSchwann/GoDao/internal/flag"
+	"github.com/OlegSchwann/GoDao/internal/template"
 	"log"
-	"strings"
+	"os"
 )
 
 // Пишем кодогенератор.
-// Пишем, потом рефакторим, проверяем гипотезы.
+// Он будет работать через // go generate, преимущественно.
+// Нужно написать версию 0.1 , только бы работало.
 
-// загружаем код
-// парсим пакет
+// Этапы работы кодогенератора:
+// парсим аргументы командной строки +
+// парсим файл
 // находим нужные структуры
 // находим в структурах нужные структуры
 // формируем правило в виде структуры
-// подбираем шаблон по этой структуре
+// в том числе тип
 // записываем в файлик с похожим расширением
 
 // начнём с написания тестов.
 // пример использования и результата, из которого можно потом наделать шаблонов.
 
 func main() {
-	fset := token.NewFileSet()
-	pkgs, err := parser.ParseFile(fset, "/home/max-dev/go/src/github.com/OlegSchwann/GoDao/test/2_insert/insert.go", nil, parser.ParseComments|parser.Trace|parser.AllErrors)
+	config, err := flag.ShellParsing(os.Args)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal(err)
 	}
 
-	for _, decl := range pkgs.Decls {
-		decl, ok := decl.(*ast.GenDecl)
-		if !ok {
-			continue
-		}
-		if decl.Tok != token.TYPE {
-			continue
-		}
-		if decl.Doc == nil {
-			continue
-		}
-		for _, comment := range decl.Doc.List {
-			if strings.Contains(comment.Text, "goDao:generate") {
-				goto haveLabel
-			}
-		}
-		continue
-	haveLabel:
-		for _, spec := range decl.Specs {
-			spec, ok := spec.(*ast.TypeSpec)
-			if !ok {
-				continue
-			}
-			structType, ok := spec.Type.(*ast.StructType)
-			if !ok {
-				continue
-			}
-			if structType.Fields == nil {
-				continue
-			}
-			for _, field := range structType.Fields.List {
-				fmt.Printf("%#v", field)
-			}
-		}
+	file, err := ast.ParseFile(config)
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	dot, err := extract.Extract(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	outputFile, err := os.Create(config.OutputGoFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer outputFile.Close()
+	outputFileBuffered := bufio.NewWriter(outputFile)
+	defer outputFileBuffered.Flush()
+	err = template.Render(dot, outputFileBuffered)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }
 
 // задача:
@@ -84,3 +73,12 @@ func main() {
 // в библиотеке отсутствует тип macaddr8
 // в библиотеке отсутствует тип macaddr8[]
 // в библиотеке отсутствует тип macaddr[]
+
+//TODO добавить Usage: gogao [OPTION] TARGET_FILE
+
+// структура кодогенератора:
+// распарсили флаги
+// распарсили файл в AST
+// распарсили AST в структуру для щаблона
+// открыли файл выходной
+// шаблонизировали

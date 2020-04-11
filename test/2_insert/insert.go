@@ -1,6 +1,6 @@
 package insert
 
-// goDao:generate
+// goDao: generate
 // language=PostgreSQL
 type GoDao struct {
 	Init func() error `

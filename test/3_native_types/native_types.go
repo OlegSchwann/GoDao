@@ -4,7 +4,7 @@ import (
 	"github.com/jackc/pgtype"
 )
 
-// goGao:generate
+// goDao: generate
 // language=PostgreSQL
 type GoDao struct {
 	Init func() (err error) `
@@ -14,7 +14,7 @@ type GoDao struct {
             "value" json not null
         );`
 
-	InsertOne func(json pgtype.JSON) (uuid pgtype.UUID, err error)`
+	InsertOne func(json pgtype.JSON) (uuid pgtype.UUID, err error) `
         insert into "equivalent_of_mongodb"("value")
         values ($1::json)
         returning "key";`

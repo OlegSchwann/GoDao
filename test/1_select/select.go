@@ -1,7 +1,7 @@
 // noinspection GoStructTag
 package test_select
 
-// goDao:generate
+// goDao: generate
 // language=PostgreSQL
 type GoDao struct {
 	Add func(a, b int64) (int64, error) `

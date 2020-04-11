@@ -1,3 +1,8 @@
+/* This script embeds the template inside the binary as a string,
+so that no dependency is pulled, neither the template nor the package
+for embedding static (github.com/gobuffalo/packr/packr). It turned out
+that writing the necessary code on go is easier than debugging strange
+behavior of awk and sed. */
 package main
 
 import (

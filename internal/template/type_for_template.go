@@ -1,8 +1,8 @@
-package apply_template
+package template
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"text/template"
 )
 
@@ -46,13 +46,13 @@ type DotType struct {
 	Functions   []Function
 }
 
-func Render(tt DotType) error {
+func Render(tt DotType, writer io.Writer) error {
 	t, err := template.New("GoDao").Parse(templateEmbedded)
 	if err != nil {
 		return fmt.Errorf("text/template.Template.Parse(): %w", err)
 	}
 
-	err = t.Execute(os.Stdout, tt)
+	err = t.Execute(writer, tt)
 	if err != nil {
 		return fmt.Errorf("text/template.Template.Execute(): %w", err)
 	}
