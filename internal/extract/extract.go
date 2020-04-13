@@ -1,7 +1,6 @@
 package extract
 
 import (
-	"fmt"
 	"github.com/OlegSchwann/GoDao/internal/template"
 	"go/ast"
 	"go/token"
@@ -20,16 +19,21 @@ func Extract(file *ast.File) (dot template.DotType, err error) {
 	}
 
 	for _, daoStruct := range goDaoStructs(file) {
-		fmt.Printf("%#v", daoStruct)
-
 		for _, field := range daoStruct.Fields.List {
 			// TODO: Fill in the structure values correctly.
-			// template.Function{
-			//	Name: field.Names[0].Name,
-			//	SQL: field.Tag.Value,
-			//  ??
-			// }
-			runtime.KeepAlive(field)
+			function := template.Function{
+				Name: field.Names[0].Name, // != ""
+				SQL:  field.Tag.Value,     // != "" TODO: unquote `value`
+			}
+			// TODO: for usability reasons, аll "." operators shoud be check for errors.
+			for _, parameter := range field.Type.(*ast.FuncType).Params.List {
+				variable := template.Variable{Name: parameter.Names[0].Name} //, Type: parameter.Type
+				// parameter.Type.(ast.SelectorExpr)
+				runtime.KeepAlive(variable)
+				print(&variable)
+			}
+			//InputArguments: field.Type.(ast.FuncType).Params.List,
+			runtime.KeepAlive(function)
 		}
 	}
 
