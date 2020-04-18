@@ -2,6 +2,7 @@ package testdata
 
 import "github.com/jackc/pgtype"
 
+// 4 Check imported input parameters; check imported outgoing parameters.
 // входные параметры: 1 шт импортированный
 // выходные параметры: режим template.QueryRow: 1 параметр нативный, кроме ошибки
 

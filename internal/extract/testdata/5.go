@@ -1,5 +1,6 @@
 package testdata
 
+// 5 Test arrays, input and output.
 // входные параметры: 1 шт массив
 // выходные параметры: режим template.QueryRow: 1 параметр массив, кроме ошибки
 

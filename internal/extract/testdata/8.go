@@ -1,5 +1,6 @@
 package testdata
 
+// 8 Check that the composite types are not valid.
 // входные параметры: 1 шт невалидный параметр, структура. Проверить ошибку.
 // выходные параметры: (float32, err error)
 
