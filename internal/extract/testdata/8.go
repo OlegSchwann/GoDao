@@ -10,6 +10,7 @@ type Triplet struct {
 	end       float32
 }
 
+// GoDao: generate
 type GoDao8 struct {
 	// language=PostgreSQL
 	TripletSum func(triplet Triplet) (sum float32, err error) `

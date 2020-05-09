@@ -1,6 +1,6 @@
 package test
 
-// goDao: generate
+// GoDao: generate
 type goDao struct {
 	// language=PostgreSQL
 	CubeRoot func(cubeVolume float64) (cubeSide float64) `

@@ -8,21 +8,45 @@ import (
 	"testing"
 )
 
-func TestExtract(t *testing.T) {
-	type args struct {
-		Path string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantDot template.DotType
-		wantErr bool
-	}{{
+type args struct {
+	Path string
+}
+
+type test struct {
+	name    string
+	args    args
+	wantDot template.DotType
+	wantErr bool
+}
+
+func TestExtract1(t *testing.T) {
+	tt := test{
 		name:    "1 The absence of an \"err error\" as the last parameter is incorrect.",
 		args:    args{Path: "./testdata/1.go"},
 		wantDot: template.DotType{},
 		wantErr: true,
-	}, {
+	}
+	t.Run(tt.name, func(t *testing.T) {
+		file, err := ast.ParseFile(flag.Config{
+			InputGoFilePath:  tt.args.Path,
+			OutputGoFilePath: "/dev/null",
+			Verbose:          false,
+		})
+		if err != nil {
+			t.Fatal("ast.ParseFile(\""+tt.args.Path+"\"): ", err)
+		}
+		gotDot, err := Extract(file)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("Extract() error = %#v, wantErr %#v", err, tt.wantErr)
+			return
+		}
+		if !reflect.DeepEqual(gotDot, tt.wantDot) {
+			t.Errorf("Extract() gotDot = %#v, want %#v", gotDot, tt.wantDot)
+		}
+	})
+}
+func TestExtract2(t *testing.T) {
+	tt := test{
 		name: "2 Checking the template.Exec mode when the function signature = \"func() (err error)\".",
 		args: args{Path: "./testdata/2.go"},
 		wantDot: template.DotType{
@@ -38,7 +62,28 @@ func TestExtract(t *testing.T) {
 			}},
 		},
 		wantErr: false,
-	}, {
+	}
+	t.Run(tt.name, func(t *testing.T) {
+		file, err := ast.ParseFile(flag.Config{
+			InputGoFilePath:  tt.args.Path,
+			OutputGoFilePath: "/dev/null",
+			Verbose:          false,
+		})
+		if err != nil {
+			t.Fatal("ast.ParseFile(\""+tt.args.Path+"\"): ", err)
+		}
+		gotDot, err := Extract(file)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("Extract() error = %#v, wantErr %#v", err, tt.wantErr)
+			return
+		}
+		if !reflect.DeepEqual(gotDot, tt.wantDot) {
+			t.Errorf("Extract() gotDot = %#v, want %#v", gotDot, tt.wantDot)
+		}
+	})
+}
+func TestExtract3(t *testing.T) {
+	tt := test{
 		name: "3 Checking incoming native parameters; checking outgoing composite parameters.",
 		args: args{Path: "./testdata/3.go"},
 		wantDot: template.DotType{
@@ -48,12 +93,12 @@ func TestExtract(t *testing.T) {
 				Name: "GetSettings",
 				// language=PostgreSQL
 				SQL: `
-        with tmp(k, v) as (values
+        with "tmp"("k", "v") as (values
             (0::int8, '{"dark_theme": true}'::json),
             (1::int8, '{"cookies": false}'::json)
-        ) select v
-        from tmp
-        where k = $1
+        ) select "v"
+        from "tmp"
+        where "k" = $1
         limit 1;`,
 				InputArguments:  []template.Variable{{"id", "int64"}},
 				ReturnValueType: template.QueryRow,
@@ -61,7 +106,29 @@ func TestExtract(t *testing.T) {
 			}},
 		},
 		wantErr: false,
-	}, {
+	}
+	t.Run(tt.name, func(t *testing.T) {
+		file, err := ast.ParseFile(flag.Config{
+			InputGoFilePath:  tt.args.Path,
+			OutputGoFilePath: "/dev/null",
+			Verbose:          false,
+		})
+		if err != nil {
+			t.Fatal("ast.ParseFile(\""+tt.args.Path+"\"): ", err)
+		}
+		gotDot, err := Extract(file)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("Extract() error = %#v, wantErr %#v", err, tt.wantErr)
+			return
+		}
+		if !reflect.DeepEqual(gotDot, tt.wantDot) {
+			t.Errorf("Extract() gotDot = %#v, want %#v", gotDot, tt.wantDot)
+		}
+	})
+}
+
+func TestExtract4(t *testing.T) {
+	tt := test{
 		name: "4 Check imported input parameters; check imported outgoing parameters.",
 		args: args{Path: "./testdata/4.go"},
 		wantDot: template.DotType{
@@ -78,7 +145,28 @@ func TestExtract(t *testing.T) {
 			}},
 		},
 		wantErr: false,
-	}, {
+	}
+	t.Run(tt.name, func(t *testing.T) {
+		file, err := ast.ParseFile(flag.Config{
+			InputGoFilePath:  tt.args.Path,
+			OutputGoFilePath: "/dev/null",
+			Verbose:          false,
+		})
+		if err != nil {
+			t.Fatal("ast.ParseFile(\""+tt.args.Path+"\"): ", err)
+		}
+		gotDot, err := Extract(file)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("Extract() error = %#v, wantErr %#v", err, tt.wantErr)
+			return
+		}
+		if !reflect.DeepEqual(gotDot, tt.wantDot) {
+			t.Errorf("Extract() gotDot = %#v, want %#v", gotDot, tt.wantDot)
+		}
+	})
+}
+func TestExtract5(t *testing.T) {
+	tt := test{
 		name: "5 Test arrays, input and output.",
 		args: args{Path: "./testdata/5.go"},
 		wantDot: template.DotType{
@@ -87,17 +175,39 @@ func TestExtract(t *testing.T) {
 				Name: "Delta",
 				// language=PostgreSQL
 				SQL: `
-				        select array(
-				            select "tmp"."to" - "tmp"."from"
-				            from unnest(0 || $1::int4[], $1::int4[] || 0) as "tmp"("from", "to")
-				        )::int4[];`,
+		select array(
+		    select "tmp"."to" - "tmp"."from"
+		    from unnest(0 || $1::int4[], $1::int4[] || 0) as "tmp"("from", "to")
+		)::int4[];`,
 				InputArguments:  []template.Variable{{"input", "[]int32"}},
 				ReturnValueType: template.QueryRow,
 				OutputArguments: []template.Variable{{"output", "[]int32"}},
 			}},
 		},
 		wantErr: false,
-	}, {
+	}
+	t.Run(tt.name, func(t *testing.T) {
+		file, err := ast.ParseFile(flag.Config{
+			InputGoFilePath:  tt.args.Path,
+			OutputGoFilePath: "/dev/null",
+			Verbose:          false,
+		})
+		if err != nil {
+			t.Fatal("ast.ParseFile(\""+tt.args.Path+"\"): ", err)
+		}
+		gotDot, err := Extract(file)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("Extract() error = %#v, wantErr %#v", err, tt.wantErr)
+			return
+		}
+		if !reflect.DeepEqual(gotDot, tt.wantDot) {
+			t.Errorf("Extract() gotDot = %#v, want %#v", gotDot, tt.wantDot)
+		}
+	})
+}
+
+func TestExtract6(t *testing.T) {
+	tt := test{
 		name: "6 Checking several outgoing parameters.",
 		args: args{Path: "./testdata/6.go"},
 		wantDot: template.DotType{
@@ -122,8 +232,29 @@ func TestExtract(t *testing.T) {
 			}},
 		},
 		wantErr: false,
-	}, {
-		// TODO
+	}
+	t.Run(tt.name, func(t *testing.T) {
+		file, err := ast.ParseFile(flag.Config{
+			InputGoFilePath:  tt.args.Path,
+			OutputGoFilePath: "/dev/null",
+			Verbose:          false,
+		})
+		if err != nil {
+			t.Fatal("ast.ParseFile(\""+tt.args.Path+"\"): ", err)
+		}
+		gotDot, err := Extract(file)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("Extract() error = %#v, wantErr %#v", err, tt.wantErr)
+			return
+		}
+		if !reflect.DeepEqual(gotDot, tt.wantDot) {
+			t.Errorf("Extract() gotDot = %#v, want %#v", gotDot, tt.wantDot)
+		}
+	})
+}
+
+func TestExtract7(t *testing.T) {
+	tt := test{
 		name: "7 Checking multiple input parameters; checking the unpacking of the structure fields.",
 		args: args{Path: "./testdata/7.go"},
 		wantDot: template.DotType{
@@ -155,30 +286,49 @@ func TestExtract(t *testing.T) {
 			}},
 		},
 		wantErr: false,
-	}, {
+	}
+	t.Run(tt.name, func(t *testing.T) {
+		file, err := ast.ParseFile(flag.Config{
+			InputGoFilePath:  tt.args.Path,
+			OutputGoFilePath: "/dev/null",
+			Verbose:          false,
+		})
+		if err != nil {
+			t.Fatal("ast.ParseFile(\""+tt.args.Path+"\"): ", err)
+		}
+		gotDot, err := Extract(file)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("Extract() error = %#v, wantErr %#v", err, tt.wantErr)
+			return
+		}
+		if !reflect.DeepEqual(gotDot, tt.wantDot) {
+			t.Errorf("Extract() gotDot = %#v, want %#v", gotDot, tt.wantDot)
+		}
+	})
+}
+func TestExtract8(t *testing.T) {
+	tt := test{
 		name:    "8 Check that the composite types are not valid.",
 		args:    args{Path: "./testdata/8.go"},
 		wantDot: template.DotType{},
 		wantErr: true,
-	}}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			file, err := ast.ParseFile(flag.Config{
-				InputGoFilePath:  tt.args.Path,
-				OutputGoFilePath: "/dev/null",
-				Verbose:          false,
-			})
-			if err != nil {
-				t.Fatal("ast.ParseFile(\""+tt.args.Path+"\"): ", err)
-			}
-			gotDot, err := Extract(file)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Extract() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(gotDot, tt.wantDot) {
-				t.Errorf("Extract() gotDot = %v, want %v", gotDot, tt.wantDot)
-			}
-		})
 	}
+	t.Run(tt.name, func(t *testing.T) {
+		file, err := ast.ParseFile(flag.Config{
+			InputGoFilePath:  tt.args.Path,
+			OutputGoFilePath: "/dev/null",
+			Verbose:          false,
+		})
+		if err != nil {
+			t.Fatal("ast.ParseFile(\""+tt.args.Path+"\"): ", err)
+		}
+		gotDot, err := Extract(file)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("Extract() error = %#v, wantErr %#v", err, tt.wantErr)
+			return
+		}
+		if !reflect.DeepEqual(gotDot, tt.wantDot) {
+			t.Errorf("Extract() gotDot = %#v, want %#v", gotDot, tt.wantDot)
+		}
+	})
 }
