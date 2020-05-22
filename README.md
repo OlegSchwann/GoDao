@@ -1,4 +1,189 @@
-<h3>Supported types convertions</h3>
+<h3>Описание</h3>
+
+GoDao — легковесный кодогенератор для упрощения работы с сырым PostgreSQL. Он создан что бы предотвратить написание
+шаблонного кода раз за разом, для сериализации и распаковки данных. Вы только пишете сигнатуру функции, а тело
+реализуете на SQL, со всеми его достоинствами. Клеевойкод будет сгенерирован за вас.
+
+<h3>Установка</h3>
+
+```bash
+# install
+go get -u github.com/OlegSchwann/GoDao/...
+
+# use
+GoDao <input_file>.go
+```
+
+<h3>Синтаксис и примеры</h3>
+
+Идея очень проста — пишется структура, с полями функциями. Теги полей являются кодом на SQL. Если вы пользуетесь GoLand,
+то оцените решение — по Сtrl+MouseButton на использовании функции вы сразу перейдёте на объявление SQL, без
+необходимости искать строки по всему проекту, сваленные кучей, как это бывает иногда. Простой пример, традиционный для
+первого знакомства:
+
+```go
+package example
+
+// GoDao: generate
+type goDao struct {
+   // language=PostgreSQL
+   HelloWorld func() (text string, err error) `
+      select 'Hello, world!';`
+}
+```
+
+Комментарий <code>Dao: generate</code> показывает, что по данной структуре нужно генерировать, комментарий
+<code>language=PostgreSQL</code> включает language injection в IDE от JetBrains - GoLang. Это даёт всю мощь расширений
+по работе с базами данных — проверка синтаксиса SQL, проверка доступности полей, выполнение SQL прямо из строки в
+языке Go — вам не придётся логировать запросы вашей страной ORM, что бы разобраться, что произошло. SQL статичен -
+можно использовать оператор explain и заранее отпрофелировать по производительности. Теперь несколько более сложных примеров.
+
+```go
+package example
+
+// GoDao: generate
+type User struct {
+   // language=PostgreSQL
+   Init func() (err error) `
+        create table "user"(
+            "id" serial8 primary key,
+            "login" text not null
+        );`
+
+   // language=PostgreSQL
+   Add func(login string) (id int64, err error) `
+      insert into "user" ("login") values ($1::text) returning "id";`
+}
+```
+
+<code>err error</code> последним возвращаемым параметром обязательно, все функции выполнения запросов под капотом возвращают ошибки.
+Входные параметры распаковываются в нумерованные переменные <code>$1</code>. Если вы сталкивались с запуском SQL, то вы,
+возможно, знаете про разницу между <code>sql.Exec()</code>, <code>sql.QueryRow()</code> и <code>sql.Query()</code> из
+пакета sql. Дело в том, что драйвер не знает, что вернулось при запросе. Он должен освободить соединение с базой данных
+для следующего запроса, но только после того, как результат прочитан. Потому при нулевом количестве возвращаемых
+значений нужно использовать <code>sql.Exec()</code>, при одной строке - <code>sql.QueryRow()</code>, а при
+неопределённом количестве параметров — вычитывать построчно из тела ответа, из объекта <code>sql.Rows</code>, не забыв
+вручную закрыть его. Однако это лишнее. Библиотека скрывает сложности интерфейса, от вас требуется только согласовать
+тип возвращаемого значения и SQL запрос. Лучше на примере:
+
+<ul><li>
+
+Нет результата в SQL — нет возвращаемой переменной.
+
+```go
+package example
+
+// GoDao: generate
+type GoDao2 struct {
+   // language=PostgreSQL
+   DropTestDatabase func() (err error) `
+        drop database if exists "test";`
+}
+```
+
+</li><li>
+
+Возвращается нативный для postgres тип, один или  — в возвращаемых значениях тоже примитивный тип. Таблица нативных типов ниже.
+
+```go
+package example
+
+import "github.com/jackc/pgtype"
+
+// GoDao: generate
+type GoDao3 struct {
+   // language=PostgreSQL
+   GetSettings func(id int64) (json pgtype.JSON, err error) `
+        with "tmp"("k", "v") as (values
+            (0::int8, '{"dark_theme": true}'::json),
+            (1::int8, '{"cookies": false}'::json)
+        ) select "v"
+        from "tmp"
+        where "k" = $1
+        limit 1;`
+}
+```
+
+</li><li>
+
+Если вы запрашиваете 1 колонку, то проще и быстрее создать массив из результатов запроса и вернуть его. Все нативные
+типы Postgres имеют производный нативный тип массива.
+
+```go
+package example
+
+// GoDao: generate
+type GoDao5 struct {
+   // Расчёт разницы между соседними значениями:
+   // [42, 43, 38, 35, 37, 35, 36, 33] => [42, 1, -5, -3, 2, -2, 1, -3, -33]
+   // language=PostgreSQL
+   Delta func(input []int32) (output []int32, err error) `
+        select array(
+            select "tmp"."to" - "tmp"."from"
+            from unnest(0 || $1::int4[], $1::int4[] || 0) as "tmp"("from", "to")
+        )::int4[];`
+}
+```
+
+</li><li>
+
+Если вы запрашиваете несколько строчек, то используйте массив структур. Порядок возвращаемых значений должен совпадать
+с порядком полей в структуре. Кстати, обратите внимание, как порядок сортировки изменяется логической переменной. Любую
+логику можно написать, не используя шаблонизацию, SQL достаточно гибок.  
+
+```go
+package example
+
+import "github.com/jackc/pgtype"
+
+type Setting struct {
+   Key   int64
+   Value pgtype.JSON
+}
+
+// GoDao: generate
+type GoDao7 struct {
+   // language=PostgreSQL
+   SelectUsers func(ascendingOrder bool, deleted bool) (settings []Setting, err error) `
+        with "tmp" ("key", "value") as (values
+            (1, '{"name": "Павел Дуров"}'::json),
+            (2, '{"name": "Александра Владимирова", "deleted": true}'::json),
+            (3, '{"name": "Вячеслав Мирилашвили", "deleted": true}'::json),
+            (4, '{"name": "Лев Левиев", "deleted": true}'::json)
+            -- отсылка https://ru.wikipedia.org/wiki/Код_Дурова                            
+        ) select "key", "value"
+        from "tmp"
+        where coalesce("value"->>'deleted', false)::bool = $2::bool
+        order by
+            case when $1::bool then "key" end desc,
+            case when not $1::bool then "key" end asc;`
+}
+```
+
+</li></ul>
+
+<h3>Генерация</h3>
+
+После реализации управляющих структур надо запустить генератор.
+Лучше всего использовать встроеный функционал go generate. 
+Скажем, в файле users_storage.go добавьте инструкцию
+
+```go
+//go:generate go run github.com/OlegSchwann/GoDao ./users_storage.go
+```
+
+GoLand сразу предложит запустить генератор маленькой зелёной стрелочкой. Но можно сделать это и из консоли запустив go generate.
+
+<h3>Система контроля версий</h3>
+
+Рекомендуется commit'ить сгенерированный код в репозиторий, вместе с вручную сделанными изменениями.
+Это позволит запускать ваш проект сразу после <code>go get</code>, без сложных настроек. 
+
+<h3>Нативные типы PostgreSQL</h3>
+
+Некоторые типы являются нативными для базы данных. Это позволяет использовать
+бинарный высокопроизводительный протокол передачи данных.  Вот полный список доступных нативных типов:
+
 <table>
   <thead>
     <tr>
@@ -258,3 +443,9 @@
     </tr>
   </tbody>
 </table>
+
+<h3>Вопросы</h3>
+
+Если при использовании возникли вопросы, я буду рад ответить в
+<a href="https://github.com/OlegSchwann/GoDao/issues">issues</a> или в 
+<a href="https://t.me/MaxDev">Telegram</a>.
